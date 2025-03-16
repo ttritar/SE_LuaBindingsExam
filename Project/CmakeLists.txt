@@ -1,0 +1,68 @@
+cmake_minimum_required(VERSION 3.20)
+project(LuaGame)
+
+include(FetchContent)
+
+# C++ 17 required (filesystem)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_WIN32_EXECUTABLE ON)
+
+# Set the subsystem to 'windows' for using WinMain
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")  # For WinMain entry point
+
+# Enable Unicode for the project
+add_definitions(-D_UNICODE -DUNICODE)  # Define macros to enable Unicode
+
+# Fetch LUA
+FetchContent_Declare(
+    lua
+    URL https://github.com/marovira/lua/archive/refs/tags/5.4.4.tar.gz
+)
+FetchContent_MakeAvailable(lua)
+
+# Fetch SOL2
+FetchContent_Declare(
+    sol2
+    URL https://github.com/ThePhD/sol2/archive/refs/tags/v3.3.0.tar.gz
+)
+FetchContent_MakeAvailable(sol2)
+
+# Fetch SDL2
+FetchContent_Declare(
+    sdl
+    URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.9/SDL2-2.30.9.tar.gz
+)
+FetchContent_MakeAvailable(sdl)
+
+# Gather Sources
+list(APPEND SOURCES 
+            "src/AbstractGame.cpp"
+            "src/Game.cpp"
+            "src/GameEngine.cpp"
+            "src/GameWinMain.cpp"     
+)
+
+list(APPEND LUA_SOURCES 
+            "Breakout.lua")
+
+# Executable Target
+set(EXE_NAME ${PROJECT_NAME})
+add_executable(${EXE_NAME} ${SOURCES} ${LUA_SOURCES})
+target_link_libraries(${EXE_NAME} PRIVATE SDL2::SDL2-static lua::lua sol2)
+target_include_directories(${EXE_NAME} PRIVATE ${SDL2_SOURCE_DIR}/include)
+target_include_directories(${EXE_NAME} PRIVATE src)
+
+# Copy Lua Scripts
+add_custom_target(CopyScripts ALL
+    COMMENT "Copying Lua scripts to output directory"
+)
+
+FOREACH(LUA_SOURCE IN LISTS LUA_SOURCES)
+    add_custom_command(TARGET CopyScripts POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/${LUA_SOURCE}
+        $<TARGET_FILE_DIR:${EXE_NAME}>/${LUA_SOURCE})
+ENDFOREACH()
+
+add_dependencies(CopyScripts ${EXE_NAME})
